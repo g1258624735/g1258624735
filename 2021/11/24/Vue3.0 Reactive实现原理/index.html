@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>关于Vue3.0 Reactive实现原理 | 小军的博客</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  
+    <meta name="keywords" content="MinHow,MinHow's Blog" />
+  
+  <meta name="description" content="1，在vue3.0 中 我们使用const state &#x3D; reactive({ name: ‘王小二’}) 给state添加为响应式数据2，那么reactive 到底做了些啥呢？让我们来探讨一下 首先 我们定义一个reactive.ts 文件  定义一个reactive方法     12345678910111213141516export function reactive(target)&amp;#">
+<meta property="og:type" content="article">
+<meta property="og:title" content="关于Vue3.0 Reactive实现原理">
+<meta property="og:url" content="https://g1258624735.github.io/g1258624735/2021/11/24/Vue3.0%20Reactive%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/index.html">
+<meta property="og:site_name" content="小军的博客">
+<meta property="og:description" content="1，在vue3.0 中 我们使用const state &#x3D; reactive({ name: ‘王小二’}) 给state添加为响应式数据2，那么reactive 到底做了些啥呢？让我们来探讨一下 首先 我们定义一个reactive.ts 文件  定义一个reactive方法     12345678910111213141516export function reactive(target)&amp;#">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2021-11-24T01:24:50.287Z">
+<meta property="article:modified_time" content="2021-11-24T01:34:05.962Z">
+<meta property="article:author" content="小军">
+<meta name="twitter:card" content="summary">
+  
+  
+    <link rel="icon" href="/favicon.ico">
+  
+  <link href="//cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+  
+<link rel="stylesheet" href="/g1258624735/css/style.css">
+
+  
+<script src="/g1258624735/js/pace.min.js"></script>
+
+  
+
+  
+  
+
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+<body>
+  <div id="container">
+      <header id="header">
+    <div id="banner"></div>
+    <div id="header-outer">
+        <div id="header-menu" class="header-menu-pos animated">
+            <div class="header-menu-container">
+                <a href="/g1258624735/" class="left">
+                    <span class="site-title">小军的博客</span>
+                </a>
+                <nav id="header-menu-nav" class="right">
+                    
+                    <a  href="/g1258624735/">
+                        <i class="fa fa-home"></i>
+                        <span>Home</span>
+                    </a>
+                    
+                    <a  href="/g1258624735/archives">
+                        <i class="fa fa-archive"></i>
+                        <span>Archives</span>
+                    </a>
+                    
+                    <a  href="/g1258624735/about">
+                        <i class="fa fa-user"></i>
+                        <span>About</span>
+                    </a>
+                    
+                </nav>
+                <a class="mobile-header-menu-button">
+                    <i class="fa fa-bars"></i>
+                </a>
+            </div>
+        </div>
+        <div id="header-row">
+            <div id="logo">
+                <a href="/g1258624735/">
+                    <img src="/g1258624735/images/logo.png" alt="logo">
+                </a>
+            </div>
+            <div class="header-info">
+                <div id="header-title">
+                    
+                    <h2>
+                        小军的博客
+                    </h2>
+                    
+                </div>
+                <div id="header-description">
+                    
+                    <h3>
+                        一个专注 WEB 开发的技术博客
+                    </h3>
+                    
+                </div>
+            </div>
+            <nav class="header-nav">
+                <div class="social">
+                    
+                        <a title="MinHow" target="_blank" href="//minhow.com">
+                            <i class="fa fa-home fa-2x"></i></a>
+                    
+                        <a title="Github" target="_blank" href="//github.com/wongminho">
+                            <i class="fa fa-github fa-2x"></i></a>
+                    
+                        <a title="Weibo" target="_blank" href="//weibo.com/WongMinHo">
+                            <i class="fa fa-weibo fa-2x"></i></a>
+                    
+                        <a title="Twitter" target="_blank" href="//twitter.com/huangminhow">
+                            <i class="fa fa-twitter fa-2x"></i></a>
+                    
+                </div>
+            </nav>
+        </div>
+    </div>
+</header>
+      <div class="outer">
+        <section id="main" class="body-wrap"><article id="post-Vue3.0 Reactive实现原理" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 class="post-title" itemprop="name">
+      关于Vue3.0 Reactive实现原理
+    </h1>
+    <div class="post-title-bar">
+      <ul>
+          
+        <li>
+          <i class="fa fa-calendar"></i>  2021-11-24
+        </li>
+        <li>
+          <i class="fa fa-eye"></i>
+          <span id="busuanzi_value_page_pv"></span>
+        </li>
+      </ul>
+    </div>
+  
+
+          
+      </header>
+    
+    <div class="article-entry post-content" itemprop="articleBody">
+      
+            
+            <h4 id="1，在vue3-0-中-我们使用const-state-reactive-name-‘王小二’-给state添加为响应式数据"><a href="#1，在vue3-0-中-我们使用const-state-reactive-name-‘王小二’-给state添加为响应式数据" class="headerlink" title="1，在vue3.0 中 我们使用const state = reactive({ name: ‘王小二’}) 给state添加为响应式数据"></a>1，在vue3.0 中 我们使用const state = reactive({ name: ‘王小二’}) 给state添加为响应式数据</h4><h4 id="2，那么reactive-到底做了些啥呢？让我们来探讨一下"><a href="#2，那么reactive-到底做了些啥呢？让我们来探讨一下" class="headerlink" title="2，那么reactive 到底做了些啥呢？让我们来探讨一下"></a>2，那么reactive 到底做了些啥呢？让我们来探讨一下</h4><ul>
+<li><p>首先 我们定义一个reactive.ts 文件</p>
+</li>
+<li><p>定义一个reactive方法  </p>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">export function reactive(target)&#123;</span><br><span class="line">		//vue3.0是使用proxy 进行响应式处理</span><br><span class="line">		//所以首先定义个proxy代理对象</span><br><span class="line">		const proxy = new Proxy(target, () =&gt; &#123;</span><br><span class="line">			get(target,key,recevier)&#123;</span><br><span class="line">				const res = Reflect.get(target, key, recevier);</span><br><span class="line">				return res</span><br><span class="line">			&#125;,</span><br><span class="line">			set(target,key,value,recevier)&#123;</span><br><span class="line">				const res = Reflect.set(target, key, value, recevier);</span><br><span class="line">				return res</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;)</span><br><span class="line">		return proxy</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<ul>
+<li>然后引用</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">import &#123; reactive &#125; from &#x27;./reactive.ts&#x27;</span><br><span class="line">const state  = reactive(&#123; name: &#x27;王小二&#x27;&#125;)</span><br></pre></td></tr></table></figure>
+<ul>
+<li>那么reactive不是传的一共对象咋办呢 ，那set get 里面的key 不就有问题了，所以我们得加个类型判断<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">function isObject(value) &#123;</span><br><span class="line">    return typeof value === &#x27;object&#x27; &amp;&amp; value !== null</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">export function reactive(target)&#123;</span><br><span class="line">		if (!isObject(target)) &#123;</span><br><span class="line">		    return target</span><br><span class="line">		&#125;</span><br><span class="line">		//vue3.0是使用proxy 进行响应式处理</span><br><span class="line">		//所以首先定义个proxy代理对象</span><br><span class="line">		const proxy = new Proxy(target, () =&gt; &#123;</span><br><span class="line">			get(target,key,recevier)&#123;</span><br><span class="line">				const res = Reflect.get(target, key, recevier);</span><br><span class="line">				return res</span><br><span class="line">			&#125;,</span><br><span class="line">			set(target,key,value,recevier)&#123;</span><br><span class="line">				const res = Reflect.set(target, key, value, recevier);</span><br><span class="line">				return res</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;)</span><br><span class="line">		return proxy</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li>那么这时又来了个问题 ，在这里调用两次同样得reactive<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">import &#123; reactive &#125; from &#x27;./reactive.ts&#x27;</span><br><span class="line">const state1  = reactive(&#123; name: &#x27;王小二&#x27;&#125;)</span><br><span class="line">const state2  = reactive(&#123; name: &#x27;王小二&#x27;&#125;)</span><br></pre></td></tr></table></figure></li>
+<li>那么按上面逻辑，他两次都会去代理，这里性能不友好，所以我们需要优化下re’active方法</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">const reactiveMap = new WeakMap(); 	//是个弱引用 key 必须是对象，如果key没有被引用就会被垃圾回收</span><br><span class="line">export function reactive(target)&#123;</span><br><span class="line">		if (!isObject(target)) &#123;</span><br><span class="line">		    return target</span><br><span class="line">		&#125;</span><br><span class="line">		if(reactiveMap.get(target))&#123;		//如果存在就直接返回了</span><br><span class="line">			return reactiveMap.get(target)</span><br><span class="line">		&#125;</span><br><span class="line">		//vue3.0是使用proxy 进行响应式处理</span><br><span class="line">		//所以首先定义个proxy代理对象</span><br><span class="line">		const proxy = new Proxy(target, () =&gt; &#123;</span><br><span class="line">			get(target,key,recevier)&#123;</span><br><span class="line">				const res = Reflect.get(target, key, recevier);</span><br><span class="line">				return res</span><br><span class="line">			&#125;,</span><br><span class="line">			set(target,key,value,recevier)&#123;</span><br><span class="line">				const res = Reflect.set(target, key, value, recevier);</span><br><span class="line">				return res</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;)</span><br><span class="line">		reactiveMap.set(target, proxy); 	//如果不存在就加进去</span><br><span class="line">		return proxy</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>这时又有个问题，我们定义了state1 ，那么 reactive(state1) == state1 吗？</li>
+<li>答案是不相等的</li>
+<li>所以我们需要再增加个限制</li>
+<li>首先定义一个枚举类<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">const enum ReactiveFlags &#123;</span><br><span class="line">    IS_REACTIVE = &#x27;__v_isReactive&#x27;</span><br><span class="line">&#125;</span><br><span class="line">function isObject(value) &#123;</span><br><span class="line">    return typeof value === &#x27;object&#x27; &amp;&amp; value !== null</span><br><span class="line">&#125;</span><br><span class="line">const reactiveMap = new WeakMap();</span><br><span class="line">export function reactive(target)&#123;</span><br><span class="line">	if(traget[ReactiveFlags.IS_REACTIVE])&#123; 	//如果这个值存在了就直接返回，再get中设置值</span><br><span class="line">		return target</span><br><span class="line">	&#125;</span><br><span class="line">		if (!isObject(target)) &#123; //是否是对象</span><br><span class="line">		    return target</span><br><span class="line">		&#125;</span><br><span class="line">		if(reactiveMap.get(target))&#123;		//如果存在就直接返回了</span><br><span class="line">			return reactiveMap.get(target)</span><br><span class="line">		&#125;</span><br><span class="line">		//vue3.0是使用proxy 进行响应式处理</span><br><span class="line">		//所以首先定义个proxy代理对象</span><br><span class="line">		const proxy = new Proxy(target, () =&gt; &#123;</span><br><span class="line">			get(target,key,recevier)&#123;</span><br><span class="line">				if (key === ReactiveFlags.IS_REACTIVE) &#123;</span><br><span class="line">				    return true;</span><br><span class="line">				&#125;</span><br><span class="line">				const res = Reflect.get(target, key, recevier);</span><br><span class="line">				return res</span><br><span class="line">			&#125;,</span><br><span class="line">			set(target,key,value,recevier)&#123;</span><br><span class="line">				const res = Reflect.set(target, key, value, recevier);</span><br><span class="line">				return res</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;)</span><br><span class="line">		reactiveMap.set(target, proxy); 	//如果不存在就加进去</span><br><span class="line">		return proxy</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li>最后就可以看到效果了，最后整理下，贴上完整的代码</li>
+<li>reactive.ts文件<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">const enum ReactiveFlags &#123;</span><br><span class="line">    IS_REACTIVE = &#x27;__v_isReactive&#x27;</span><br><span class="line">&#125;</span><br><span class="line">function isObject(value) &#123;</span><br><span class="line">    return typeof value === &#x27;object&#x27; &amp;&amp; value !== null</span><br><span class="line">&#125;</span><br><span class="line">const reactiveMap = new WeakMap();</span><br><span class="line">export function reactive(target)&#123;</span><br><span class="line">	if(traget[ReactiveFlags.IS_REACTIVE])&#123; 	//如果这个值存在了就直接返回，再get中设置值</span><br><span class="line">		return target</span><br><span class="line">	&#125;</span><br><span class="line">		if (!isObject(target)) &#123; //是否是对象</span><br><span class="line">		    return target</span><br><span class="line">		&#125;</span><br><span class="line">		if(reactiveMap.get(target))&#123;		//如果存在就直接返回了</span><br><span class="line">			return reactiveMap.get(target)</span><br><span class="line">		&#125;</span><br><span class="line">		//vue3.0是使用proxy 进行响应式处理</span><br><span class="line">		//所以首先定义个proxy代理对象</span><br><span class="line">		const proxy = new Proxy(target, () =&gt; &#123;</span><br><span class="line">			get(target,key,recevier)&#123;</span><br><span class="line">				if (key === ReactiveFlags.IS_REACTIVE) &#123;</span><br><span class="line">				    return true;</span><br><span class="line">				&#125;</span><br><span class="line">				const res = Reflect.get(target, key, recevier);</span><br><span class="line">				return res</span><br><span class="line">			&#125;,</span><br><span class="line">			set(target,key,value,recevier)&#123;</span><br><span class="line">				const res = Reflect.set(target, key, value, recevier);</span><br><span class="line">				return res</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;)</span><br><span class="line">		reactiveMap.set(target, proxy); 	//如果不存在就加进去</span><br><span class="line">		return proxy</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li>test.ts文件<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">import &#123; reactive &#125; from &#x27;./reactive.ts&#x27;</span><br><span class="line">const state1  = reactive(&#123; name: &#x27;王小二&#x27;&#125;)</span><br><span class="line">console.log(reactive(state1) == state1);</span><br></pre></td></tr></table></figure></li>
+</ul>
+
+            <div class="post-copyright">
+    <div class="content">
+        <p>最后更新： 2021年11月24日 09:34</p>
+        <p>原始链接： <a class="post-url" href="/g1258624735/2021/11/24/Vue3.0%20Reactive%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/" title="关于Vue3.0 Reactive实现原理">https://g1258624735.github.io/g1258624735/2021/11/24/Vue3.0%20Reactive%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/</a></p>
+        <footer>
+            <a href="https://g1258624735.github.io/g1258624735">
+                <img src="/g1258624735/images/logo.png" alt="小军">
+                小军
+            </a>
+        </footer>
+    </div>
+</div>
+
+      
+        
+            
+<div class="page-reward">
+    <a id="rewardBtn" href="javascript:;">赏</a>
+</div>
+
+<div id="reward" class="post-modal reward-lay">
+    <a class="close" href="javascript:;" id="reward-close">×</a>
+    <span class="reward-title">
+        <i class="icon icon-quote-left"></i>
+        请我吃糖~
+        <i class="icon icon-quote-right"></i>
+    </span>
+    <div class="reward-content">
+        
+        <div class="reward-code">
+            <img id="rewardCode" src="/g1258624735/images/wechat_code.jpg" alt="打赏二维码">
+        </div>
+        <div class="reward-select">
+            
+            <label class="reward-select-item checked" data-id="wechat" data-wechat="/g1258624735/images/wechat_code.jpg">
+                <img class="reward-select-item-wechat" src="/g1258624735/images/wechat.png" alt="微信">
+            </label>
+            
+            
+            <label class="reward-select-item" data-id="alipay" data-alipay="/g1258624735/images/alipay_code.jpg">
+                <img class="reward-select-item-alipay" src="/g1258624735/images/alipay.png" alt="支付宝">
+            </label>
+            
+        </div>
+    </div>
+</div>
+
+
+        
+    </div>
+    <footer class="article-footer">
+        
+        
+<div class="post-share">
+    <a href="javascript:;" id="share-sub" class="post-share-fab">
+        <i class="fa fa-share-alt"></i>
+    </a>
+    <div class="post-share-list" id="share-list">
+        <ul class="share-icons">
+          <li>
+            <a class="weibo share-sns" target="_blank" href="http://service.weibo.com/share/share.php?url=https://g1258624735.github.io/g1258624735/2021/11/24/Vue3.0%20Reactive%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/&title=《关于Vue3.0 Reactive实现原理》 — 小军的博客&pic=https://g1258624735.github.io/g1258624735images/logo.png" data-title="微博">
+              <i class="fa fa-weibo"></i>
+            </a>
+          </li>
+          <li>
+            <a class="weixin share-sns" id="wxFab" href="javascript:;" data-title="微信">
+              <i class="fa fa-weixin"></i>
+            </a>
+          </li>
+          <li>
+            <a class="qq share-sns" target="_blank" href="http://connect.qq.com/widget/shareqq/index.html?url=https://g1258624735.github.io/g1258624735/2021/11/24/Vue3.0%20Reactive%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/&title=《关于Vue3.0 Reactive实现原理》 — 小军的博客&source=欢迎来到小军的博客" data-title="QQ">
+              <i class="fa fa-qq"></i>
+            </a>
+          </li>
+          <li>
+            <a class="facebook share-sns" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=https://g1258624735.github.io/g1258624735/2021/11/24/Vue3.0%20Reactive%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/" data-title="Facebook">
+              <i class="fa fa-facebook"></i>
+            </a>
+          </li>
+          <li>
+            <a class="twitter share-sns" target="_blank" href="https://twitter.com/intent/tweet?text=《关于Vue3.0 Reactive实现原理》 — 小军的博客&url=https://g1258624735.github.io/g1258624735/2021/11/24/Vue3.0%20Reactive%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/&via=https://g1258624735.github.io/g1258624735" data-title="Twitter">
+              <i class="fa fa-twitter"></i>
+            </a>
+          </li>
+          <li>
+            <a class="google share-sns" target="_blank" href="https://plus.google.com/share?url=https://g1258624735.github.io/g1258624735/2021/11/24/Vue3.0%20Reactive%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/" data-title="Google+">
+              <i class="fa fa-google-plus"></i>
+            </a>
+          </li>
+        </ul>
+     </div>
+</div>
+<div class="post-modal wx-share" id="wxShare">
+    <a class="close" href="javascript:;" id="wxShare-close">×</a>
+    <p>扫一扫，分享到微信</p>
+    <img src="//api.qrserver.com/v1/create-qr-code/?data=https://g1258624735.github.io/g1258624735/2021/11/24/Vue3.0%20Reactive%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/" alt="微信分享二维码">
+</div>
+
+<div class="mask"></div>
+
+        
+        <ul class="article-footer-menu">
+            
+            
+        </ul>
+        
+    </footer>
+  </div>
+</article>
+
+
+    <aside class="post-toc-pos post-toc-top" id="post-toc">
+        <nav class="post-toc-wrap">
+            <ol class="post-toc"><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#1%EF%BC%8C%E5%9C%A8vue3-0-%E4%B8%AD-%E6%88%91%E4%BB%AC%E4%BD%BF%E7%94%A8const-state-reactive-name-%E2%80%98%E7%8E%8B%E5%B0%8F%E4%BA%8C%E2%80%99-%E7%BB%99state%E6%B7%BB%E5%8A%A0%E4%B8%BA%E5%93%8D%E5%BA%94%E5%BC%8F%E6%95%B0%E6%8D%AE"><span class="post-toc-text">1，在vue3.0 中 我们使用const state &#x3D; reactive({ name: ‘王小二’}) 给state添加为响应式数据</span></a></li><li class="post-toc-item post-toc-level-4"><a class="post-toc-link" href="#2%EF%BC%8C%E9%82%A3%E4%B9%88reactive-%E5%88%B0%E5%BA%95%E5%81%9A%E4%BA%86%E4%BA%9B%E5%95%A5%E5%91%A2%EF%BC%9F%E8%AE%A9%E6%88%91%E4%BB%AC%E6%9D%A5%E6%8E%A2%E8%AE%A8%E4%B8%80%E4%B8%8B"><span class="post-toc-text">2，那么reactive 到底做了些啥呢？让我们来探讨一下</span></a></li></ol>
+        </nav>
+    </aside>
+    
+
+<nav id="article-nav">
+  
+  
+    <a href="/g1258624735/2021/11/23/hello-world/" id="article-nav-older" class="article-nav-link-wrap">
+      <span class="article-nav-title">欢迎来到小军的博客</span>
+      <i class="fa fa-hand-o-right" aria-hidden="true"></i>
+    </a>
+  
+</nav>
+
+
+
+    
+</section>
+        
+      </div>
+      <footer id="footer">
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+<p>
+    <span id="busuanzi_container_site_uv" style='display:none'>
+        总访客数：<span id="busuanzi_value_site_uv"></span>
+    </span>
+    <span id="busuanzi_container_site_pv" style='display:none'>
+        总访问量：<span id="busuanzi_value_site_pv"></span>
+    </span>
+</p>
+
+
+      <p>
+        Powered by  <a href="http://hexo.io/" target="_blank">Hexo</a>
+        Theme <a href="//github.com/wongminho/hexo-theme-miho" target="_blank">MiHo</a>
+      &copy; 2021 小军<br>
+      </p>
+    </div>
+  </div>
+</footer>
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+<script src="//cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+<script>
+  var mihoConfig = {
+      root: "https://g1258624735.github.io/g1258624735",
+      animate: true,
+      isHome: false,
+      share: true,
+      reward: 1
+  }
+</script>
+<div class="sidebar">
+    <div id="sidebar-search" title="Search">
+        <i class="fa fa-search"></i>
+    </div>
+    <div id="sidebar-category" title="Categories">
+        <i class="fa fa-book"></i>
+    </div>
+    <div id="sidebar-tag" title="Tags">
+        <i class="fa fa-tags"></i>
+    </div>
+    <div id="sidebar-top">
+        <span class="sidebar-top-icon"><i class="fa fa-angle-up"></i></span>
+    </div>
+</div>
+<div class="sidebar-menu-box" id="sidebar-menu-box">
+    <div class="sidebar-menu-box-container">
+        <div id="sidebar-menu-box-categories">
+            
+        </div>
+        <div id="sidebar-menu-box-tags">
+            
+        </div>
+    </div>
+    <a href="javascript:;" class="sidebar-menu-box-close">&times;</a>
+</div>
+<div class="mobile-header-menu-nav" id="mobile-header-menu-nav">
+    <div class="mobile-header-menu-container">
+        <span class="title">Menus</span>
+        <ul class="mobile-header-menu-navbar">
+            
+            <li>
+                <a  href="/g1258624735/">
+                    <i class="fa fa-home"></i><span>Home</span>
+                </a>
+            </li>
+            
+            <li>
+                <a  href="/g1258624735/archives">
+                    <i class="fa fa-archive"></i><span>Archives</span>
+                </a>
+            </li>
+            
+            <li>
+                <a  href="/g1258624735/about">
+                    <i class="fa fa-user"></i><span>About</span>
+                </a>
+            </li>
+            
+        </ul>
+    </div>
+    <div class="mobile-header-tag-container">
+        <span class="title">Tags</span>
+        <div id="mobile-header-container-tags">
+            
+        </div>
+    </div>
+</div>
+<div class="search-wrap">
+    <span class="search-close">&times;</span>
+        <a href="javascript:;" class="header-icon waves-effect waves-circle waves-light" id="back">
+            <i class="icon icon-lg icon-chevron-left"></i>
+        </a>
+        <input class="search-field" placeholder="Search..." id="keywords">
+        <a id="search-submit" href="javascript:;">
+            <i class="fa fa-search"></i>
+        </a>
+    <div class="search-container" id="search-container">
+        <ul class="search-result" id="search-result">
+        </ul>
+    </div>
+</div>
+
+<div id="search-tpl">
+    <li class="search-result-item">
+        <a href="{url}" class="search-item-li">
+            <span class="search-item-li-title" title="{title}">{title}</span>
+        </a>
+    </li>
+</div>
+
+<script src="/g1258624735/js/search.js"></script>
+
+
+<script src="/g1258624735/js/main.js"></script>
+
+
+
+  <script src="//cdn.bootcss.com/particles.js/2.0.0/particles.min.js"></script>
+  <div id="particles"></div>
+  
+<script src="/g1258624735/js/particles.js"></script>
+
+
+
+
+
+
+
+
+  
+<link rel="stylesheet" href="//cdn.bootcss.com/animate.css/3.5.0/animate.min.css">
+
+  <script src="//cdn.bootcss.com/scrollReveal.js/3.0.5/scrollreveal.js"></script>
+  
+<script src="/g1258624735/js/animate.js"></script>
+
+
+
+  
+<script src="/g1258624735/js/pop-img.js"></script>
+
+  <script>
+     $(".article-entry p img").popImg();
+  </script>
+
+  </div>
+</body>
+</html>
